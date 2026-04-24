@@ -296,15 +296,18 @@ def test(model, testloader, device):
     loss_fn = nn.BCELoss()
 
     loss_sum = 0
+    all_probs = []
     all_preds = []
     all_labels = []
 
     for x_data, y_data in testloader:
         probs = torch.as_tensor(sbs.predict(x_data)).float()
         loss_sum += loss_fn(probs, y_data).item()
+        all_probs.append(probs.detach().cpu())
         all_preds.append(torch.round(probs).detach().cpu())
         all_labels.append(y_data.detach().cpu())
 
+    all_probs = torch.cat(all_probs).numpy().flatten()
     all_preds = torch.cat(all_preds).numpy().flatten()
     all_labels = torch.cat(all_labels).numpy().flatten()
 
@@ -312,7 +315,7 @@ def test(model, testloader, device):
     accuracy = (all_preds == all_labels).mean()
     precision = precision_score(all_labels, all_preds, zero_division=0)
     recall = recall_score(all_labels, all_preds, zero_division=0)
-    auc = roc_auc_score(all_labels, all_preds)
+    auc = roc_auc_score(all_labels, all_probs)
 
     return loss, accuracy, precision, recall, auc
 
