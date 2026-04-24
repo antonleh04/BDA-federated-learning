@@ -6,6 +6,7 @@ build-backend = "hatchling.build"
 name = "flwrcovid19"
 version = "1.0"
 description = "Federated Learning with PyTorch and Flower (Covid19)"
+license = {file = "LICENSE"}
 dependencies = [
     "flwr[simulation]>=1.28.0",
     "torch==2.11.0",
