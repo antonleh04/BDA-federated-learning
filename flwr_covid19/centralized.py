@@ -10,7 +10,7 @@ from sklearn.preprocessing import StandardScaler
 from imblearn.over_sampling import RandomOverSampler
 from sklearn.metrics import precision_score, recall_score, roc_auc_score
 
-DATA_PATH = Path(__file__).parent.parent / "data" / "Covid19.csv"
+DATA_PATH = "http://127.0.0.1:8000/Covid19.csv"
 
 FEATURE_COLS = [
     "USMER", "SEX", "PATIENT_TYPE", "PNEUMONIA", "AGE", "PREGNANT",
