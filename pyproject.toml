@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "flwrcovid19"
+version = "1.0"
+description = "Federated Learning with PyTorch and Flower (Covid19)"
+dependencies = [
+    "flwr[simulation]>=1.28.0",
+    "torch==2.11.0",
+    "scikit-learn",
+    "imbalanced-learn"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+
+[tool.flwr.app]
+publisher = "BDA"
+fab-format-version = 1
+flwr-version-target = "1.28.0"
+
+[tool.flwr.app.components]
+serverapp = "flwr_covid19.server_app:app"
+clientapp = "flwr_covid19.client_app:app"
+
+[tool.flwr.app.config]
+num-server-rounds = 20
+fraction-evaluate = 0.5
+local-epochs = 1
+learning-rate = 0.1
+batch-size = 32
+strategy-name = "fedavg-weighted"
+proximal-mu = 0.1
