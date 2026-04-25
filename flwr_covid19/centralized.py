@@ -228,9 +228,9 @@ class StepByStep(object):
         torch.manual_seed(seed)
         np.random.seed(seed)
 
-    def train(self, n_epochs, seed=42):
-        # To ensure reproducibility of the training process
-        self.set_seed(seed)
+    def train(self, n_epochs, seed=None):
+        if seed is not None:
+            self.set_seed(seed)
 
         for epoch in range(n_epochs):
             # Keeps track of the number of epochs
