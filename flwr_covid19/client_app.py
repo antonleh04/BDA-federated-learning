@@ -33,7 +33,9 @@ def train(msg: Message, context: Context):
     medical_unit = MEDICAL_UNITS[partition_id]
     trainloader, valloader = load_data(medical_unit, batch_size)
 
-    # Call the training function
+    # Call the training function. proximal_mu is sent by the server only for
+    # FedProx strategies; default to 0.0 (no proximal term) for FedAvg.
+    proximal_mu = float(msg.content["config"].get("proximal_mu", 0.0))
     train_loss = train_fn(
         model,
         trainloader,
@@ -41,6 +43,7 @@ def train(msg: Message, context: Context):
         context.run_config["local-epochs"],
         msg.content["config"]["lr"],
         sbs.device,
+        proximal_mu=proximal_mu,
     )
 
     # Construct and return reply Message

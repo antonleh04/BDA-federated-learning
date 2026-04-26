@@ -113,7 +113,7 @@ def load_centralized_dataset(batch_size: int = 16):
  
  
 class StepByStep(object):
-    def __init__(self, model, loss_fn=None, optimizer=None):
+    def __init__(self, model, loss_fn=None, optimizer=None, proximal_mu=0.0, global_params=None):
         # Here we define the attributes of our class
         # We start by storing the arguments as attributes
         # to use later
@@ -121,6 +121,10 @@ class StepByStep(object):
         self.loss_fn = loss_fn
         self.optimizer = optimizer
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        # FedProx proximal term: snapshot of the global weights at round start
+        # and the strength mu. Set mu=0 to disable.
+        self.proximal_mu = proximal_mu
+        self.global_params = global_params
         # Let's send the model to the specified device right away
         self.model.to(self.device)
 
@@ -166,13 +170,20 @@ class StepByStep(object):
             yhat = self.model(x)
             # Step 2 - Computes the loss
             loss = self.loss_fn(yhat, y)
+            # FedProx: add (mu/2) * ||w - w_global||^2 proximal term.
+            # Skipped when mu=0 or no global snapshot is set (plain FedAvg / centralized).
+            if self.proximal_mu > 0.0 and self.global_params is not None:
+                proximal_term = 0.0
+                for w, w_global in zip(self.model.parameters(), self.global_params):
+                    proximal_term = proximal_term + (w - w_global).pow(2).sum()
+                loss = loss + (self.proximal_mu / 2.0) * proximal_term
             # Step 3 - Computes gradients for "b" and "w" parameters
             loss.backward()
             # Step 4 - Updates parameters using gradients and the
             # learning rate
             self.optimizer.step()
             self.optimizer.zero_grad()
-            
+
             # Returns the loss
             return loss.item()
 
@@ -267,13 +278,13 @@ class StepByStep(object):
         return y_hat_tensor.detach().cpu().numpy()
 
 
-def train(model, trainloader, valoader, epochs, lr, device):
+def train(model, trainloader, valoader, epochs, lr, device, proximal_mu=0.0):
     # Move model to GPU if available
     model.to(device)
 
     # Defines a binary cross-entropy loss function
     loss_fn = nn.BCELoss()
-    
+
     # Defines an SGD optimizer to update the parameters
     # (now retrieved directly from the model)
     optimizer = optim.SGD(model.parameters(), lr=lr)
@@ -281,8 +292,16 @@ def train(model, trainloader, valoader, epochs, lr, device):
     # Train mode
     model.to(device)
 
+    # FedProx: snapshot the global weights received from the server before
+    # any local SGD steps. The proximal penalty pulls local updates back
+    # toward this anchor. mu=0 disables the term (== FedAvg / centralized).
+    global_params = None
+    if proximal_mu > 0.0:
+        global_params = [p.detach().clone() for p in model.parameters()]
+
     # Train the model
-    sbs = StepByStep(model, loss_fn, optimizer)
+    sbs = StepByStep(model, loss_fn, optimizer,
+                     proximal_mu=proximal_mu, global_params=global_params)
     sbs.set_loaders(trainloader, valoader)
     sbs.train(epochs)
     
@@ -326,16 +345,16 @@ if __name__ == "__main__":
 
 	model = Net()
 
-	tr_loader, test_loader = load_data(1, 16)
+	# Match federated setup: batch_size=32, ~60 effective epochs
+	# (20 server rounds x 3 local epochs) for a fair baseline.
+	train_loader, test_loader = load_centralized_dataset(batch_size=32)
 
-	epochs = 200
+	epochs = 60
 
-	trloss = train(model, tr_loader, test_loader, epochs, lr, device)
+	trloss = train(model, train_loader, test_loader, epochs, lr, device)
 	print(trloss)
 
 	loss, accuracy, precision, recall, auc = test(model, test_loader, device)
 	print(f"loss={loss:.4f}  acc={accuracy:.4f}  prec={precision:.4f}  rec={recall:.4f}  auc={auc:.4f}")
 
-	cen_train_loader, cen_test_loader = load_centralized_dataset()
-	loss, accuracy, precision, recall, auc = test(model, cen_test_loader, device)
-	print(f"loss={loss:.4f}  acc={accuracy:.4f}  prec={precision:.4f}  rec={recall:.4f}  auc={auc:.4f}")
+	torch.save(model.state_dict(), "models/final_model_centralized.pt")

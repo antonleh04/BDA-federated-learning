@@ -65,11 +65,17 @@ def main(grid: Grid, context: Context) -> None:
                          "Choose from: fedavg-weighted, fedavg-unweighted, "
                          "fedprox-weighted, fedprox-unweighted")
 
-    # Start strategy, run for num_rounds
+    # Start strategy, run for num_rounds.
+    # proximal_mu is forwarded to clients so FedProx variants apply the proximal
+    # penalty locally; FedAvg variants ignore it (client uses 0.0 by default).
+    train_cfg = {"lr": lr}
+    if strategy_name in ("fedprox-weighted", "fedprox-unweighted"):
+        train_cfg["proximal_mu"] = proximal_mu
+
     result = strategy.start(
         grid=grid,
         initial_arrays=arrays,
-        train_config=ConfigRecord({"lr": lr}),
+        train_config=ConfigRecord(train_cfg),
         num_rounds=num_rounds,
         evaluate_fn=global_evaluate,
     )
