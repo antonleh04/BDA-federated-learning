@@ -1,5 +1,12 @@
 BDA federated learning
 
+Team: 
+- Maddi Olaetxea Usabiaga
+- Johanka Jakubove
+- Anton Lehnerer
+
+
+
 setup:
 
 ```bash
